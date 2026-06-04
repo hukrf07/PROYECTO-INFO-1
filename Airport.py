@@ -48,7 +48,9 @@ def ConvertToDecimal(coord_str):
         seconds = float(coord_str[5:7])
 
     decimal = degrees + (minutes / 60) + (seconds / 3600)
+    # Convierte coordenadas en grados, minutos y segundos a grados decimales.
     if direction in ['S', 'W']:
+        # Cambia el signo para coordenadas Sur u Oeste.
         decimal = -decimal
     return decimal
 def LoadAirports(filename):
@@ -68,9 +70,11 @@ def SaveSchengenAirports(airports, filename):
     if not airports:
         return -1
     schengen_list = [a for a in airports if a.schengen]
+    # Crea una lista con solo los aeropuertos Schengen.
     if not schengen_list:
         return -1
     with open(filename, 'w') as f:
+        # Abre el archivo y lo cierra automáticamente al terminar.
         f.write("CODE LAT LON\n")
         for a in airports:
             if a.schengen:
@@ -85,6 +89,7 @@ def RemoveAirport(airports, code):
     for i in range(len(airports)):
         if airports[i].code == code:
             airports.pop(i)
+            # Elimina el elemento situado en la posición i.
             return 0
     return -1
 

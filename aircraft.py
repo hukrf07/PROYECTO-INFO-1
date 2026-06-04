@@ -1,10 +1,46 @@
 from Airport import LoadAirports, IsSchengenAirport
-class Aircraft:
-    def __init__(self, id, airline, origin, arrival_time):
+class AircraftArrival:
+    def __init__(self, id, origin, arrival_time, airline, schengen):
         self.id = id
-        self.airline = airline
         self.origin = origin
         self.arrival_time = arrival_time
+        self.airline = airline
+        self.schengen = schengen
+        # añadir esto
+        self.destination = ""
+        self.departure = ""
+        try:
+            self.hour = int(arrival_time.split(":")[0])
+        except:
+            self.hour = 0
+
+
+class AircraftDeparture:
+
+    def __init__(self):
+        self.id = ""
+        self.destination = ""
+        self.departure = ""
+        self.airline = ""
+        # añadir esto
+        self.origin = ""
+        self.arrival_time = ""
+        self.schengen = False
+
+class AircraftMovement:
+
+    def __init__(self):
+        self.id = ""
+        self.airline = ""
+
+        self.origin = ""
+        self.arrival = ""
+
+        self.destination = ""
+        self.departure = ""
+
+        self.schengen = False
+
 def LoadArrivals(filename):
     aircrafts = []
 
@@ -32,28 +68,130 @@ def LoadArrivals(filename):
 
     return aircrafts
 
+def LoadDepartures(filename):
+
+    aircrafts = []
+
+    try:
+
+        with open(filename, "r") as file:
+
+            next(file)
+
+            for line in file:
+
+                line = line.strip()
+
+                if line == "":
+                    continue
+
+                parts = line.split()
+
+                print(parts)   # DEBUG
+
+                if len(parts) < 4:
+                    continue
+
+                aircraft_id = parts[0]
+                destination = parts[1]
+                departure = parts[2]
+                airline = parts[3]
+
+                aircraft = AircraftDeparture()
+
+                aircraft.id = aircraft_id
+                aircraft.destination = destination
+                aircraft.departure = departure
+                aircraft.airline = airline
+
+                aircrafts.append(aircraft)
+
+    except Exception as e:
+
+        print("ERROR:", e)
+
+        return []
+
+    return aircrafts
+
+def MergeMovements(arrivals, departures):
+
+    if not arrivals or not departures:
+        return []
+
+    merged = []
+
+    used_departures = []
+
+    for arrival in arrivals:
+
+        found = False
+
+        for departure in departures:
+
+            if arrival.id == departure.id:
+
+                aircraft = AircraftMovement()
+
+                aircraft.id = arrival.id
+                aircraft.airline = arrival.airline
+
+                aircraft.schengen = arrival.schengen
+
+                aircraft.origin = arrival.origin
+                aircraft.arrival = arrival.arrival_time
+
+                aircraft.destination = departure.destination
+                aircraft.departure = departure.departure
+
+                merged.append(aircraft)
+
+                used_departures.append(departure)
+
+                found = True
+
+                break
+
+        if not found:
+            merged.append(arrival)
+
+    for departure in departures:
+
+        if departure not in used_departures:
+            merged.append(departure)
+
+    return merged
+
+def NightAircraft(aircrafts):
+
+    if not aircrafts:
+        return []
+
+    result = []
+
+    for aircraft in aircrafts:
+
+        if aircraft.origin == "" and aircraft.departure != "":
+            result.append(aircraft)
+
+    return result
+
 import matplotlib.pyplot as plt
 
-class Aircraft:
-    def __init__(self, id, origin, arrival_time, airline, schengen):
-        self.id = id
-        self.origin = origin
-        self.arrival_time = arrival_time
-        self.airline = airline
-        self.schengen = schengen
-        try:
-            self.hour = int(arrival_time.split(":")[0])
-        except:
-            self.hour = 0
-
-
 def LoadArrivals(filename, airports):
+
     aircrafts = []
     mapa_schengen = {a.code: a.schengen for a in airports}
+    # Crea un diccionario código → estado Schengen para búsquedas rápidas.
 
     with open(filename, "r", encoding="utf-8") as f:
+
+        next(f)   # SALTAR CABECERA
+
         for line in f:
+
             parts = line.replace(";", " ").replace(",", " ").split()
+            # Sustituye ; y , por espacios para facilitar el split().
 
             if len(parts) < 4:
                 continue
@@ -62,16 +200,27 @@ def LoadArrivals(filename, airports):
             origin = parts[1]
             arrival_time = parts[2]
             airline = parts[3]
-            schengen = mapa_schengen.get(origin, False)
 
-            a = Aircraft(id, origin, arrival_time, airline, schengen)
+            schengen = mapa_schengen.get(origin, False)
+            # Devuelve el valor asociado o False si no existe la clave.
+
+            a = AircraftArrival(
+                id,
+                origin,
+                arrival_time,
+                airline,
+                schengen
+            )
+
             aircrafts.append(a)
+
+    return aircrafts
 
     return aircrafts
 
 def LongDistanceArrivals(aircrafts):
     return aircrafts[:50]
-
+# Devuelve los primeros 50 elementos de la lista.
 def MapFlights(aircrafts):
     filename = "flights.kml"
 
@@ -89,11 +238,12 @@ def PlotArrivals(aircrafts):
         return None
 
     hours = [0] * 24
-
+    # Crea una lista de 24 posiciones inicializadas a 0.
     for a in aircrafts:
         try:
             h = int(a.arrival_time.split(":")[0])
             hours[h] += 1
+            # Suma una llegada a la hora correspondiente.
         except:
             continue
 
@@ -116,9 +266,12 @@ def PlotAirlines(aircrafts):
             airlines[a.airline] += 1
         else:
             airlines[a.airline] = 1
+            # Cuenta cuántos vuelos tiene cada aerolínea.
 
     names = list(airlines.keys())
+    # Obtiene todas las aerolíneas.
     values = list(airlines.values())
+    # Obtiene el número de vuelos de cada aerolínea.
 
     fig, ax = plt.subplots(figsize=(5,4))
 
@@ -159,6 +312,7 @@ from Airport import LoadAirports
 
 def distance(lat1, lon1, lat2, lon2):
     return ((lat1 - lat2)**2 + (lon1 - lon2)**2)**0.5 * 111
+# Calcula la distancia entre dos puntos usando Pitágoras.
 
 
 def MapFlights(aircrafts):
@@ -211,6 +365,7 @@ import math
 
 def distance(lat1, lon1, lat2, lon2):
     return math.sqrt((lat1 - lat2) ** 2 + (lon1 - lon2) ** 2) * 111
+# Raíz cuadrada para calcular la distancia.
 
 
 from Airport import LoadAirports
@@ -224,6 +379,7 @@ def LongDistanceArrivals(aircrafts):
     for a in aircrafts:
         for ap in airports:
             if a.origin.strip()[-4:] == ap.code.strip():
+                # Obtiene los últimos 4 caracteres eliminando espacios.
                 d = distance(ap.lat, ap.lon, 41.297, 2.083)  # Barcelona
 
                 if d > 2000:

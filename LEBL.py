@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 class Gate:
 
     def __init__(self, name):
@@ -79,6 +80,7 @@ def IsAirlineInTerminal(terminal, name):
         return False
 
     if name in terminal.airlines:
+        # Comprueba si una aerolínea pertenece a una terminal.
         return True
 
     return False
@@ -190,6 +192,7 @@ def AssignGate(bcn, aircraft):
                     for gate in area.gates:
 
                         compatible_gates.append(gate)
+                        # Añade una puerta compatible a la lista.
 
     # si no hay gates
     if len(compatible_gates) == 0:
@@ -212,9 +215,7 @@ def AssignGate(bcn, aircraft):
 
     return gate.name
 
-def GateOccupancy(bcn):
-
-    info = []
+def FreeGate(bcn, aircraft_id):
 
     for terminal in bcn.terminals:
 
@@ -222,38 +223,158 @@ def GateOccupancy(bcn):
 
             for gate in area.gates:
 
-                # estado puerta
+                if gate.aircraft == aircraft_id:
+
+                    gate.aircraft = ""
+
+                    return 0
+
+    return -1
+
+def AssignNightGates(bcn, aircrafts):
+
+    if not aircrafts:
+        return -1
+
+    for aircraft in aircrafts:
+
+        if aircraft.origin == "" and aircraft.departure != "":
+
+            AssignGate(bcn, aircraft)
+
+    return 0
+
+def time_to_hour(time_str):
+
+    try:
+        return int(time_str.split(":")[0])
+    # Extrae únicamente la parte de la hora.
+
+    except:
+        return -1
+
+def AssignGatesAtTime(bcn, aircrafts, time):
+
+    hour = time_to_hour(time)
+
+    not_assigned = 0
+
+    # LIBERAR PUERTAS (salidas)
+    for aircraft in aircrafts:
+
+        if hasattr(aircraft, "departure") and aircraft.departure != "":
+            # Comprueba si el objeto tiene el atributo indicado.
+
+            dep_hour = time_to_hour(aircraft.departure)
+
+            if dep_hour == hour:
+                # Libera la puerta cuando llega la hora de salida.
+
+                FreeGate(bcn, aircraft.id)
+
+    # ASIGNAR LLEGADAS
+    for aircraft in aircrafts:
+
+        arrival_time = ""
+
+        if hasattr(aircraft, "arrival"):
+            arrival_time = aircraft.arrival
+
+        elif hasattr(aircraft, "arrival_time"):
+            arrival_time = aircraft.arrival_time
+
+        if arrival_time != "":
+
+            arr_hour = time_to_hour(arrival_time)
+
+            if arr_hour == hour:
+
+                result = AssignGate(bcn, aircraft)
+
+                if result == -1:
+                    not_assigned += 1
+
+    return not_assigned
+
+def PlotDayOccupancy(bcn, aircrafts):
+
+    hours = []
+    occupied = []
+    rejected = []
+
+    for h in range(24):
+
+        time = f"{h}:00"
+        # Genera una hora tipo 15:00.
+
+        rejected_count = AssignGatesAtTime(
+            bcn,
+            aircrafts,
+            time
+        )
+
+        total = 0
+
+        for terminal in bcn.terminals:
+
+            for area in terminal.boarding_areas:
+
+                for gate in area.gates:
+
+                    if gate.aircraft != "":
+                        total += 1
+
+        hours.append(h)
+        occupied.append(total)
+        rejected.append(rejected_count)
+
+    fig, ax = plt.subplots()
+
+    ax.plot(hours, occupied, label="Occupied gates")
+    ax.plot(hours, rejected, label="Rejected aircraft")
+
+    ax.set_xlabel("Hour")
+    ax.set_ylabel("Number")
+
+    ax.legend()
+
+    return fig
+
+def GateOccupancy(bcn):
+    info = []
+    for terminal in bcn.terminals:
+        for area in terminal.boarding_areas:
+            for gate in area.gates:
+                # ESTADO PUERTA
                 if gate.aircraft == "":
-
                     status = "LIBRE"
-
                 else:
-
-                    status = (
-                        f"OCUPADO POR: {gate.aircraft}"
-                    )
-
-                linea = (
-                    f"{terminal.name} | "
-                    f"Area {area.name} | "
-                    f"{gate.name} | "
-                    f"{status}"
-                )
+                    status = (f"OCUPADO POR: {gate.aircraft}")
+                linea = (f"{terminal.name} | "f"Area {area.name} | "f"{gate.name} | "f"{status}")
+                # Une varios textos en una única cadena.
 
                 info.append(linea)
-
     return info
 
+import copy
+
+def AirportStateAtHour(bcn, aircrafts, hour):
+
+    temp = copy.deepcopy(bcn)
+
+    for h in range(hour + 1):
+
+        AssignGatesAtTime(
+            temp,
+            aircrafts,
+            f"{h}:00"
+        )
+
+    return temp
+
 if __name__ == "__main__":
-
-    bcn = LoadAirportStructure(
-        "VERSION 2/Terminals.txt"
-    )
-
+    bcn = LoadAirportStructure("VERSION 2/Terminals.txt")
     print("Aeropuerto:", bcn.code)
-
     info = GateOccupancy(bcn)
-
     for x in info:
-
         print(x)
